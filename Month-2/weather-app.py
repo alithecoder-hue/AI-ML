@@ -23,6 +23,21 @@ def save_favorites(favorites):
         return True
      except:
          return False
+     
+def save_to_history(city):
+    history = load_history()
+    history.append(city)
+    if len(history) > 10 :
+        history = history[-10:]
+    with open("history.txt", "w") as f:
+        for c in history:
+            f.write( c + "\n")
+
+def load_history():
+    if os.path.exists("history.txt"):
+        with open("history.txt", "r") as f:
+            return [line.strip() for line in f.readlines()]
+    return[]
 
 def get_weather(city):
     url = f"http://api.weatherapi.com/v1/current.json?key={api_key}&q={city}"
@@ -31,6 +46,8 @@ def get_weather(city):
 
         if response.status_code == 200:
             data = response.json()
+
+            save_to_history(city)
 
             city_name = data['location']['name']
             country = data['location']['country']
@@ -80,9 +97,10 @@ while True:
     print("2. view favorites")
     print("3. Add to favorites")
     print("4. Remove From favorites")
-    print("5. Exit")
+    print("5. Recent History")
+    print("6. Exit")
 
-    choice = input("\n Choose(1-5) : ")
+    choice = input("\n Choose(1-6) : ")
 
     if choice == "1":
         city = input("Enter City name : ")
@@ -137,6 +155,14 @@ while True:
         else:
             print("\n No favorites to remove")
     elif choice == "5":
+        history = load_history()
+        if history:
+            print("\n Recent searches:")
+            for i, city in enumerate(reversed(history) , 1 ):
+                print(f"{i}. {city}")
+        else:
+            print("\n No searches yet")
+    elif choice == "6":
         print("\n Goodbye! have a nice day...")
     else:
         print("Invalid Choice please Choose between (1-5)")
