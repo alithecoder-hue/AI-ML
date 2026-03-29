@@ -2,6 +2,7 @@ import requests
 import json
 import os
 from config import api_key
+from datetime import datetime
 
 FAVORITE_FILE = "favorite.text"
 
@@ -38,6 +39,8 @@ def load_history():
         with open("history.txt", "r") as f:
             return [line.strip() for line in f.readlines()]
     return[]
+
+
 
 def get_weather(city):
     url = f"http://api.weatherapi.com/v1/current.json?key={api_key}&q={city}"
@@ -91,6 +94,34 @@ print("="*35)
 favorites = load_favorites()
 print(f"loaded {len(favorites)} favorite cities")
 
+def show_forecast(city):
+    url = f"http://api.weatherapi.com/v1/forecast.json?key={api_key}&q={city}&days=3"
+
+    try:
+        response = requests.get(url)
+        data = response.json()
+        if 'error' in data:
+            print(f"\n Error {data['error']['message']}")
+            return
+        if 'forecast' not in data or 'forecastday' not in data['forecast']:
+            print("Forecast data not available for this city")
+            return
+            
+        print(f"\n 3 Days Forecast for {city.upper()}")
+        print("="*40)
+
+        for day in data['forecast']['forecastday']:
+            date = day['date']
+            max_temp = int(day['day']['maxtemp_c'])
+            min_temp = int(day['day']['mintemp_c'])            
+            condition = day['day']['condition']['text']
+            rain = day['day']['daily_chance_of_rain']
+
+            print(f"{date}: {max_temp}C / {min_temp}C - {condition} ({rain}% rain)")
+            print("="*40)
+    except Exception as e:
+        print(f"\nError getting forecast: {e}")
+
 while True:
     print("\n Options: ")
     print("1. Check weather")
@@ -98,7 +129,8 @@ while True:
     print("3. Add to favorites")
     print("4. Remove From favorites")
     print("5. Recent History")
-    print("6. Exit")
+    print("6. 3 Days forecast")
+    print("7. Exit")
 
     choice = input("\n Choose(1-6) : ")
 
@@ -163,6 +195,10 @@ while True:
         else:
             print("\n No searches yet")
     elif choice == "6":
+        city = input("Enter city name for forecast: ")
+        show_forecast(city)
+
+    elif choice == "7":
         print("\n Goodbye! have a nice day...")
     else:
         print("Invalid Choice please Choose between (1-5)")
