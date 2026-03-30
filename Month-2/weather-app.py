@@ -40,7 +40,56 @@ def load_history():
             return [line.strip() for line in f.readlines()]
     return[]
 
+def show_dashboard(city):
+    url = f"http://api.weatherapi.com/v1/forecast.json?key={api_key}&q={city}&days=3"
 
+    response = requests.get(url)
+    data = response.json()
+    
+    if 'error' in data:
+        print(f"\n Error : {data['data']['message']}")
+        return
+    
+    temps = []
+    dates = []
+    conditions = []
+
+    for day in data['forecast']['forecastday']:
+        temps.append(day['day']['maxtemp_c'])
+        dates.append(day['date'])
+        conditions.append(day['day']['condition']['text'])
+
+    print(f"\n Temperature Dashboard - {city.upper()}")
+    print("="*50)
+    print("\nTemperature graph:\n")
+    print("="*50)
+    max_temp = max(temps)
+    
+    for i in range(len(temps)):
+        temp = temps[i]
+        date = dates[i]
+        condition = conditions[i]
+
+        bar_length = int((temp/max_temp)*40)
+        print("\n")
+        bar = "█"* bar_length + "░" * (40-bar_length)
+        short_date = date[5:]
+
+        print(f"{short_date}: {temp:3}C {bar} ({condition})")
+    print("\n" +  "="*50)
+    print(f"Max: {max(temps)}C | Min: {min(temps)}C | Avg: {sum(temps)/len(temps):.1f}C")
+
+    print("\n Trend:")
+    for i in range(len(temps) - 1 ):
+        diff = temps[i+1] - temps[i]
+        if diff > 0:
+            print(f"   Day {i+1} → Day {i+2}: ↑ +{diff}°C (Getting warmer)")
+        elif diff < 0:
+            print(f"   Day {i+1} → Day {i+2}: ↓ {diff}°C (Getting cooler)")
+        else:
+            print(f"   Day {i+1} → Day {i+2}: → Stable")
+    
+    print("="*50)
 
 def get_weather(city):
     url = f"http://api.weatherapi.com/v1/current.json?key={api_key}&q={city}"
@@ -130,9 +179,10 @@ while True:
     print("4. Remove From favorites")
     print("5. Recent History")
     print("6. 3 Days forecast")
-    print("7. Exit")
+    print("7. Temperature DashBoard")
+    print("8. Exit")
 
-    choice = input("\n Choose(1-6) : ")
+    choice = input("\n Choose Between (1-8) : ")
 
     if choice == "1":
         city = input("Enter City name : ")
@@ -197,8 +247,10 @@ while True:
     elif choice == "6":
         city = input("Enter city name for forecast: ")
         show_forecast(city)
-
     elif choice == "7":
+        city = input("\n Enter city for Dashboard: ")
+        show_dashboard(city)
+    elif choice == "8":
         print("\n Goodbye! have a nice day...")
     else:
         print("Invalid Choice please Choose between (1-5)")
