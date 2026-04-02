@@ -11,6 +11,8 @@ def create_database():
             task_name TEXT NOT NULL,
             status TEXT DEFAULT 'pending',
             priority TEXT DAFAULT 'medium',
+            category TEXT DEFAULT 'personal' ,
+            due_date TEXT ,
             created_date TEXT NOT NULL
         )
     ''')
@@ -19,18 +21,19 @@ def create_database():
     print("Database created successfully")
 
 
-def add_task(task_name , priority='medium'):
+def add_task(task_name , priority='medium', category ='personal', due_date = None):
     conn = sqlite3.connect('todo.db')
     cursor = conn.cursor()
 
     created_date = datetime.now().strftime("%Y-%m-%d %H:%M")
+
     cursor.execute('''
-        INSERT INTO tasks (task_name, status, priority, created_date)
-        VALUES (?, ?, ?, ?)
-    ''',(task_name, 'pending', priority, created_date))
+        INSERT INTO tasks (task_name, status, priority, category, due_date, created_date)
+        VALUES (?, ?, ?, ?, ?, ?)
+    ''',(task_name, 'pending', priority, category, due_date, created_date))
     conn.commit()
     conn.close()
-    print(f"Task added: {task_name} (Priority: {priority})")
+    print(f"Task added: {task_name} (Priority: {priority} | category: {category})")
 
 def view_tasks(filter_by=None):
     conn = sqlite3.connect('todo.db')
@@ -65,6 +68,151 @@ def view_tasks(filter_by=None):
         print(f"{task[0]:<4} {task[1]:<30}{status_icon}{task[2]:<8}{priority_icon}{task[3]:<6}{task[4]}")
         print("="*60)
 
+def view_by_category():
+    conn = sqlite3.connect('todo.db')
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT DISTINCT category FROM tasks")
+    categories = cursor.fetchall()
+
+    if not categories:
+        print("\n No task found")
+        conn.close()
+        return
+    print("\n Available Categories: ")
+    for i , cat in enumerate(categories, 1):
+        print(f"{i}. {cat[0].capitalize()}")
+
+    choice = input("\n Choose category number: ")
+    try:
+        cat_index = int(choice) - 1
+        selected_category = categories[cat_index][0]
+
+        cursor.execute("SELECT * FROM tasks WHERE category = ? ORDER BY due_date" , (selected_category,))
+        tasks = cursor.fetchall()
+
+        if not tasks:
+            print(f"\n No task in {selected_category} category")
+        else :
+            print(f"No task in {selected_category.upper()} category")
+            print("="*80)
+            print(f"{'ID':<4}, {'task':<25}, {'status':<10}, {'priority':<8}, {'Due Date':<12}")
+            print("="*80)
+
+            for task in tasks:
+                status_icon = '✅' if task[2] == 'complete' else '⏳'
+                priority_icon = {'high': '🔴', 'medium': '🟡', 'low': '🟢'}.get(task[3], '⚪')
+                due = task[5] if task[5] else 'No date'
+                
+                print(f"{task[0]:<4} {task[1]:<25} {status_icon} {task[2]:<8} {priority_icon} {task[3]:<6} {due:<12}")
+            print("="*80)
+    except:
+        print("❌ Invalid choice!")
+    
+    conn.close()
+
+def view_overdue_tasks():
+    """Show tasks with due date before today"""
+    conn = sqlite3.connect('todo.db')
+    cursor = conn.cursor()
+    
+    today = datetime.now().strftime("%Y-%m-%d")
+    
+    cursor.execute('''
+        SELECT * FROM tasks 
+        WHERE due_date IS NOT NULL 
+        AND due_date < ? 
+        AND status = 'pending'
+        ORDER BY due_date
+    ''', (today,))
+    
+    tasks = cursor.fetchall()
+    conn.close()
+    
+    if not tasks:
+        print("\n✅ No overdue tasks! Great job!")
+        return
+    
+    print("\n⚠️ OVERDUE TASKS ⚠️")
+    print("="*80)
+    print(f"{'ID':<4} {'Task':<25} {'Priority':<8} {'Due Date':<12}")
+    print("="*80)
+    
+    for task in tasks:
+        priority_icon = {'high': '🔴', 'medium': '🟡', 'low': '🟢'}.get(task[3], '⚪')
+        print(f"{task[0]:<4} {task[1]:<25} {priority_icon} {task[3]:<6} {task[5]:<12}")
+    
+    print("="*80)
+
+def view_due_today():
+    """Show tasks due today"""
+    conn = sqlite3.connect('todo.db')
+    cursor = conn.cursor()
+    
+    today = datetime.now().strftime("%Y-%m-%d")
+    
+    cursor.execute('''
+        SELECT * FROM tasks 
+        WHERE due_date = ? 
+        AND status = 'pending'
+        ORDER BY priority
+    ''', (today,))
+    
+    tasks = cursor.fetchall()
+    conn.close()
+    
+    if not tasks:
+        print("\n🎉 No tasks due today! Enjoy your day!")
+        return
+    
+    print("\n📅 TASKS DUE TODAY")
+    print("="*80)
+    print(f"{'ID':<4} {'Task':<25} {'Priority':<8}")
+    print("="*80)
+    
+    for task in tasks:
+        priority_icon = {'high': '🔴', 'medium': '🟡', 'low': '🟢'}.get(task[3], '⚪')
+        print(f"{task[0]:<4} {task[1]:<25} {priority_icon} {task[3]:<6}")
+    
+    print("="*80)
+
+def view_sorted_by_date():
+    """View all tasks sorted by due date"""
+    conn = sqlite3.connect('todo.db')
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        SELECT * FROM tasks 
+        ORDER BY 
+            CASE WHEN due_date IS NULL THEN 1 ELSE 0 END,
+            due_date
+    ''')
+    
+    tasks = cursor.fetchall()
+    conn.close()
+    
+    if not tasks:
+        print("\n📭 No tasks found!")
+        return
+    
+    print("\n📅 TASKS SORTED BY DUE DATE")
+    print("="*90)
+    print(f"{'ID':<4} {'Task':<25} {'Status':<10} {'Priority':<8} {'Category':<10} {'Due Date':<12}")
+    print("="*90)
+    
+    for task in tasks:
+        status_icon = '✅' if task[2] == 'complete' else '⏳'
+        priority_icon = {'high': '🔴', 'medium': '🟡', 'low': '🟢'}.get(task[3], '⚪')
+        due = task[5] if task[5] else 'No date'
+        category = task[4].capitalize() if task[4] else 'Personal'
+        
+        print(f"{task[0]:<4} {task[1]:<25} {status_icon} {task[2]:<8} {priority_icon} {task[3]:<6} {category:<10} {due:<12}")
+    
+    print("="*90)
+
+
+
+
 def complete_task(task_id):
     conn = sqlite3.connect('todo.db')
     cursor = conn.cursor()
@@ -76,6 +224,8 @@ def complete_task(task_id):
     else:
         print(f"Task {task_id} not Found")
     conn.close()
+    
+
 
 def delete_task(task_id):
     conn = sqlite3.connect('todo.db')
@@ -103,9 +253,13 @@ def main():
         print("4. view  Completed Tasks")
         print("5. Mask Task as complete")
         print("6. Delete Task")
-        print("7. Exit")
+        print("7. View by category")
+        print("8. View overdue tasks")
+        print("9. View tasks due today")
+        print("10. Sort by due date")
+        print("11. Exit")
 
-        choice = input("\n Choose (1-7): ")
+        choice = input("\n Choose (1-11): ")
 
         if choice == "1":
             task_name = input("Enter task: ")
@@ -115,7 +269,7 @@ def main():
             print("3. Low")
             priority_choice = input("Choose priority (1-3): ")
 
-            priority_map ={'1': 'High', '2': 'medium', '3': 'low'}
+            priority_map ={'1': 'high', '2': 'medium', '3': 'low'}
             priority = priority_map.get(priority_choice , 'medium')
 
             add_task(task_name, priority)
@@ -133,11 +287,22 @@ def main():
             view_tasks()
             task_id =input("Enter Task ID to Delete: ")
             delete_task(task_id)
-        elif choice == "7" :
-            print("Good Bye")
+        elif choice == "7":
+            view_by_category()
+        elif choice == "8":
+            view_overdue_tasks()
+        
+        elif choice == "9":
+            view_due_today()
+        
+        elif choice == "10":
+            view_sorted_by_date()
+        elif choice == "11":
+            print("\n👋 Goodbye! Stay productive!")
             break
+        
         else:
-            print("Invalid Choice Please Choose between 1-7")
+            print("\n❌ Invalid choice. Try again!")
 
 if __name__ == "__main__":
     main()
