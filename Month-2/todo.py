@@ -42,7 +42,7 @@ def view_tasks(filter_by=None):
     if filter_by == 'pending':
         cursor.execute("SELECT * FROM tasks WHERE status = 'pending'")
     elif filter_by == 'complete':
-        cursor.execute("SELEXT * FROM tasks WHERE status = 'complete'")
+        cursor.execute("SELECT * FROM tasks WHERE status = 'complete'")
     else:
         cursor.execute("SELECT * FROM tasks")
 
@@ -67,6 +67,128 @@ def view_tasks(filter_by=None):
 
         print(f"{task[0]:<4} {task[1]:<30}{status_icon}{task[2]:<8}{priority_icon}{task[3]:<6}{task[4]}")
         print("="*60)
+
+def search_tasks(keyword):
+    conn = sqlite3.connect('todo.db')
+    cursor = conn.cursor()
+
+    cursor.execute('''
+        SELECT * FROM tasks
+        WHERE task_name LIKE ?
+        ORDER BY due_date
+    ''' , (f'%{keyword}%',))
+
+    tasks = cursor.fetchall()
+    conn.close()
+
+    if not tasks:
+        print(f"\n No tasks found containing {keyword}")
+        return
+    
+    print(f"Search Result for {keyword}")
+    print("="*80)
+    print(f"{'ID':<4}, {'Task':<25}, {'Status':<10}, {'Priority':<8}, {'category':<10}, {'Due Date':<12}")
+    print("="*80)
+
+    for task in tasks:
+        status_icon = '✅' if task[2] == 'complete' else '⏳'
+        priority_icon = {'high': '🔴', 'medium': '🟡', 'low': '🟢'}.get(task[3], '⚪')
+        category = task[4].capitalize() if task[4] else 'Personal'
+        due = task[5] if task[5] else 'No date'
+
+        print(f"{'task[0]':<4},  {'task[1]':<25}, {status_icon}, {'task[2]':<8}, {priority_icon}, {'task[3]':<6}, {category:<10}, {due:<12}")
+        print("="*80)
+
+def filter_by_status():
+    print("Filter by Status: ")
+    print("1. Pending")
+    print("2. Completed")
+
+    choice = input("\n Choose (1-2): ")
+
+    if choice == "1":
+        view_tasks('pending')
+    elif choice == "2":
+        view_tasks('complete')
+    else:
+        print("Invalid choice")
+
+def filter_by_category():
+    print("\n Filter by category: ")
+    print("1. Work")
+    print("2. Personal")
+    print("3. Study")
+    print("4. other")
+
+    choice = input("\n Choose (1-4): ")
+
+    category_map = {'1':'work', '2':'personal', '3':'study', '4':'other'}
+    category = category_map(choice)
+
+    if not category:
+        print("\n Invalid choice")
+        return
+    
+    conn = sqlite3.connect('todo.db')
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT * FROM tasks WHERE categoty = ? ORDER BY due_date", (category,))
+    tasks= cursor.fetchall()
+    conn.close()
+
+    if not tasks:
+        print(f"\n No tasks in {category} category")
+        return
+    
+    print(f"Tasks in {category.upper()} Category")
+    print("="*80)
+    print(f"{'ID':<4}, {'Task':<25}, {'Status':<10}, {'priority':<8}, {'Due Date':<12}")
+    for task in tasks:
+        status_icon = '✅' if task[2] == 'complete' else '⏳'
+        priority_icon = {'high':'🔴', 'medium': '🟡', 'low': '🟢'}.get(task[3], '⚪')
+        due = task[5] if task[5] else 'No date'
+
+        print(f"{task[0]:<4} {task[1]:<25} {status_icon} {task[2]:<8} {priority_icon} {task[3]:<6} {due:<12}")
+    print("="*80)
+
+def filter_by_priority():
+    print("Filter by priority: ")
+    print("1. High")
+    print("2. Medium")
+    print("3. Low")
+
+    choice = input("\n Choose (1-3): ")
+    priority_map = {'1':'high', '2':'medium', '3':'low'}
+    priority = priority_map.get(choice)
+
+    if not priority:
+        print("Invalid choice")
+        return
+    
+    conn = sqlite3.connect('todo.db')
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT * FROM tasks WHERE priority = ? ORDER BY due_date", (priority,))
+    tasks = cursor.fetchall()
+    conn.close()
+
+    if not tasks:
+        print(f"No tasks with {priority} priority!")
+        return
+    priority_icon = {'high':'🔴', 'medium':'🟡', 'low':'🟢'}.get(priority,'⚪')
+
+    print(f"\n TASKS WITH {priority.upper()} PRIORITY {priority_icon}")
+    print("="*80)
+    print(f"{'ID':<4}, {'Task':<25}, {'Status':<10}, {'Due Date':<12}")
+    print("="*80)
+    
+    for task in tasks:
+        status_icon = '✅' if task[2] == 'complete' else '⏳'
+        category = task[4].capitalize() if task[4] else 'Personal'
+        due = task[5] if task[5] else 'No date'
+
+        print(f"{task[0]:<4} {task[1]:<25} {status_icon} {task[2]:<8} {category:10} {due:<12}")
+    print("="*80)
 
 def view_by_category():
     conn = sqlite3.connect('todo.db')
@@ -257,9 +379,13 @@ def main():
         print("8. View overdue tasks")
         print("9. View tasks due today")
         print("10. Sort by due date")
-        print("11. Exit")
+        print("11. Search tasks")
+        print("12. Filter by status")
+        print("13. Filter by category")
+        print("14. Filter by priority")
+        print("15. Exit")
 
-        choice = input("\n Choose (1-11): ")
+        choice = input("\n Choose (1-15): ")
 
         if choice == "1":
             task_name = input("Enter task: ")
@@ -298,9 +424,17 @@ def main():
         elif choice == "10":
             view_sorted_by_date()
         elif choice == "11":
-            print("\n👋 Goodbye! Stay productive!")
+            keyword = input("\n enter keyword to search: ")
+            search_tasks(keyword)
+        elif choice == "12":
+            filter_by_status()
+        elif choice == "13":
+            filter_by_category()
+        elif choice == "14":
+            filter_by_priority()
+        elif choice == "15":
+            print("\n Goodbye! Stay productive")
             break
-        
         else:
             print("\n❌ Invalid choice. Try again!")
 
